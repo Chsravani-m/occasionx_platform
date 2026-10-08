@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "OccasionX for Business",
+    "slug": "occasionx-provider",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "occasionxbiz",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#142f58"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.occasionx.provider"
+    },
+    "android": {
+      "package": "com.occasionx.provider",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "extra": {
+      "apiGatewayUrl": "http://10.0.2.2:8000",
+      "webAppUrl": "http://10.0.2.2:3000"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OccasionX for Business uses your photo library so you can add portfolio images and KYC documents."
+        }
+      ]
+    ]
+  }
+}

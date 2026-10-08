@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "OccasionX",
+    "slug": "occasionx-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "occasionx",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#142f58"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.occasionx.customer"
+    },
+    "android": {
+      "package": "com.occasionx.customer",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "extra": {
+      "apiGatewayUrl": "http://10.0.2.2:8000",
+      "webAppUrl": "http://10.0.2.2:3000"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "OccasionX uses your location to show providers near you."
+        }
+      ]
+    ]
+  }
+}

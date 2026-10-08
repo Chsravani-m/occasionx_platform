@@ -1,0 +1,62 @@
+.ox-header {
+  background: var(--ox-bg);
+  border-bottom: 1px solid var(--ox-secondary);
+}
+
+.ox-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+}
+
+.ox-logo-img-large {
+  height: 72px;
+}
+
+.ox-header-location {
+  display: flex;
+  flex-direction: column;
+  color: var(--ox-text);
+}
+
+.ox-location-update {
+  color: var(--ox-primary);
+  font-size: 14px;
+}
+
+.ox-header-search {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 700px;
+  border: 1px solid var(--ox-secondary);
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+
+.ox-header-search select {
+  border: none;
+  padding: 12px;
+  background: white;
+  color: var(--ox-text);
+}
+
+.ox-header-search input {
+  flex: 1;
+  border: none;
+  padding: 12px;
+  outline: none;
+}
+
+.ox-header-search button {
+  background: var(--ox-primary);
+  color: white;
+  width: 56px;
+  height: 48px;
+}
+
+.ox-header-search button:hover {
+  background: var(--ox-secondary);
+}

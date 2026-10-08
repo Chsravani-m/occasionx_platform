@@ -1,7 +1,37 @@
+import os
 from fastapi import FastAPI
 
-app = FastAPI(title="OccasionX")
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1.users import router
 
-@app.get("/health")
+app = FastAPI(
+    title="OccasionX User Service"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        o.strip()
+        for o in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000",
+        ).split(",")
+        if o.strip()
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(
+    router,
+    prefix="/api/v1"
+)
+
+
+@app.get("/")
 def health():
-    return {"status":"UP"}
+    return {
+        "service": "user-service",
+        "status": "UP"
+    }

@@ -1,0 +1,31 @@
+.ox-hero {
+  position: relative;
+
+  min-height: 650px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 60px 40px;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(91,117,109,0.08),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(216,200,180,0.18),
+      transparent 35%
+    ),
+    linear-gradient(
+      135deg,
+      #F8F4EC 0%,
+      #FFFDF9 45%,
+      #F3EEE5 100%
+    );
+}

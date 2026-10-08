@@ -1,0 +1,58 @@
+.ox-search-card {
+  background: rgba(248, 244, 236, 0.78);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(216, 200, 180, 0.4);
+
+  border-radius: 28px;
+
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.08);
+
+  padding: 2.5rem;
+
+  width: 100%;
+  max-width: 850px;
+}
+
+.ox-search-heading {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--ox-text);
+  margin-bottom: 24px;
+}
+
+.ox-search-card label {
+  color: var(--ox-text);
+  font-weight: 500;
+}
+
+.ox-search-card input,
+.ox-search-card select {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ox-secondary);
+  background: white;
+  color: var(--ox-text);
+  outline: none;
+}
+
+.ox-search-card input:focus,
+.ox-search-card select:focus {
+  border-color: var(--ox-primary);
+}
+
+.ox-search-btn {
+  background: var(--ox-primary);
+  color: white;
+  border-radius: 14px;
+  padding: 14px 28px;
+  font-weight: 600;
+}
+
+.ox-search-btn:hover {
+  background: var(--ox-secondary);
+}

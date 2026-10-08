@@ -1,16 +1,38 @@
-# Python virtual environment
+# Python virtual environments
 venv/
+.venv/
 
-# Environment files
+# Environment files / secrets (templates like .env.example are committed)
 .env
+.env.*
+!.env.example
 
-# Python cache
+# User uploads: provider photos, portfolio media and KYC documents.
+# Never commit these - they live on the server's provider_uploads volume.
+services/provider-service/uploads/
+
+# Database dumps / backups
+*.dump
+*.sql.gz
+backups/
+
+# Node / build output
+node_modules/
+.next/
+.expo/
+dist/
+*.tsbuildinfo
+
+# Python cache / tooling
 __pycache__/
 *.pyc
+.pytest_cache/
 
-# VS Code
+# Scratch folder used while preparing the deployment setup
+.transfer/
+
+# Editors / OS files
 .vscode/
-
-# OS files
+.idea/
 .DS_Store
 Thumbs.db

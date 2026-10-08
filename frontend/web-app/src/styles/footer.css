@@ -1,0 +1,25 @@
+.ox-footer {
+  background: var(--ox-bg);
+  color: white;
+  padding: 60px 24px 24px;
+}
+
+.ox-footer-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 32px;
+}
+
+.ox-footer-title {
+  color: var(--ox-accent);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.ox-footer a {
+  color: var(--ox-text);
+}
+
+.ox-footer a:hover {
+  color: var(--ox-accent);
+}

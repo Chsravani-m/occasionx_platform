@@ -1,0 +1,34 @@
+# Public entry point. Caddy obtains and renews HTTPS certificates
+# automatically for both domains (their DNS A records must point at this
+# server, and ports 80/443 must be open).
+
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Web app
+{$WEB_DOMAIN} {
+	import common
+	header X-Frame-Options "SAMEORIGIN"
+	reverse_proxy web:3000
+}
+
+# API gateway (all backend traffic, plus uploaded media under /uploads)
+{$API_DOMAIN} {
+	import common
+	# Promotional videos and portfolio uploads go through here.
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy api-gateway:8000
+}

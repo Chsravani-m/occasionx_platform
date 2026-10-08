@@ -1,0 +1,11 @@
+# Keep secrets, local environments and user uploads out of the images.
+**/.env
+**/.env.*
+**/venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/tests
+**/uploads
+**/*.dump

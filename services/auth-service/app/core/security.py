@@ -1,4 +1,5 @@
 from passlib.context import CryptContext
+import secrets
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
@@ -17,7 +18,7 @@ def verify_password(
         hashed_password
     )
 
-from jose import jwt
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
@@ -41,7 +42,6 @@ def create_access_token(data: dict):
         SECRET_KEY,
         algorithm=ALGORITHM
     )
-from jose import JWTError, jwt
 
 def decode_token(token: str):
     try:
@@ -53,3 +53,25 @@ def decode_token(token: str):
         return payload
     except JWTError:
         return None
+
+def create_refresh_token(
+    data: dict
+):
+    payload = data.copy()
+
+    expire = datetime.utcnow() + timedelta(
+        days=7
+    )
+
+    payload.update(
+        {"exp": expire}
+    )
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+def generate_verification_token():
+    return secrets.token_urlsafe(32)

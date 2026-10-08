@@ -1,0 +1,244 @@
+# OccasionX production stack.
+#
+#   cp .env.example .env      # then fill in every value
+#   docker compose up -d --build
+#
+# Only Caddy is reachable from outside (ports 80/443). Postgres, Redis and
+# the backend services are on the internal network only.
+# See DEPLOYMENT.md for the full walkthrough.
+
+name: occasionx
+
+x-python-service: &python-service
+  restart: unless-stopped
+  networks: [internal]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-service-urls: &service-urls
+  AUTH_SERVICE_URL: http://auth-service:8000
+  USER_SERVICE_URL: http://user-service:8000
+  PROVIDER_SERVICE_URL: http://provider-service:8000
+  CATALOG_SERVICE_URL: http://catalog-service:8000
+  BOOKING_SERVICE_URL: http://booking-service:8000
+  SEARCH_SERVICE_URL: http://search-service:8000
+  AI_SERVICE_URL: http://ai-service:8000
+  COLLAB_SERVICE_URL: http://collab-service:8000
+
+x-common-env: &common-env
+  APP_ENV: production
+  AUTO_CREATE_TABLES: "false"
+  SQL_ECHO: "false"
+  CORS_ORIGINS: https://${WEB_DOMAIN:?set WEB_DOMAIN in .env}
+  FRONTEND_URL: https://${WEB_DOMAIN}
+
+x-jwt-env: &jwt-env
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  ALGORITHM: HS256
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+
+x-payment-env: &payment-env
+  PAYMENT_TEST_MODE: ${PAYMENT_TEST_MODE:-false}
+  RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?set RAZORPAY_KEY_ID in .env}
+  RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?set RAZORPAY_KEY_SECRET in .env}
+
+x-smtp-env: &smtp-env
+  SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+
+x-whatsapp-env: &whatsapp-env
+  WHATSAPP_TEST_MODE: ${WHATSAPP_TEST_MODE:-true}
+  WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+  WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+  WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v21.0}
+  WHATSAPP_DEFAULT_COUNTRY_CODE: ${WHATSAPP_DEFAULT_COUNTRY_CODE:-91}
+
+x-depends-db: &depends-db
+  postgres:
+    condition: service_healthy
+
+services:
+  # ---------------------------------------------------------------- data
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [internal]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD in .env}
+      APP_DB_USER: ${DB_USER:-occasionx}
+      APP_DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      # Checked over TCP: during first-start initialisation Postgres only
+      # listens on its socket, so this stays unhealthy until the init
+      # script has created every database.
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" psql -h 127.0.0.1 -U postgres -d occasionx_collab_db -tAc 'select 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [internal]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # ------------------------------------------------------------ services
+  auth-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: auth-service } }
+    image: occasionx/auth-service
+    depends_on:
+      <<: *depends-db
+      redis:
+        condition: service_healthy
+      # The startup admin seed also creates the admin's user-service profile.
+      user-service:
+        condition: service_healthy
+    environment:
+      <<: [*common-env, *service-urls, *jwt-env, *payment-env, *smtp-env, *whatsapp-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_auth_db
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      DEV_SKIP_VERIFICATION: "false"
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:?set SUPER_ADMIN_EMAIL in .env}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?set SUPER_ADMIN_PASSWORD in .env}
+
+  user-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: user-service } }
+    image: occasionx/user-service
+    depends_on: *depends-db
+    environment:
+      <<: [*common-env, *service-urls, *jwt-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_user_db
+
+  provider-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: provider-service } }
+    image: occasionx/provider-service
+    depends_on: *depends-db
+    environment:
+      <<: [*common-env, *service-urls, *jwt-env, *payment-env, *smtp-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_provider_db
+    volumes:
+      # Display pictures, cover images, portfolio media and KYC documents.
+      - provider_uploads:/app/uploads
+
+  catalog-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: catalog-service } }
+    image: occasionx/catalog-service
+    depends_on: *depends-db
+    environment:
+      <<: [*common-env, *service-urls, *jwt-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_catalog_db
+
+  booking-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: booking-service } }
+    image: occasionx/booking-service
+    depends_on: *depends-db
+    environment:
+      <<: [*common-env, *service-urls, *jwt-env, *payment-env, *whatsapp-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_booking_db
+
+  collab-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: collab-service } }
+    image: occasionx/collab-service
+    depends_on: *depends-db
+    environment:
+      <<: [*common-env, *service-urls, *smtp-env, *whatsapp-env]
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_collab_db
+
+  search-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: search-service } }
+    image: occasionx/search-service
+    environment:
+      <<: [*common-env, *service-urls]
+
+  ai-service:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: ai-service } }
+    image: occasionx/ai-service
+    environment:
+      <<: [*common-env, *service-urls]
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+
+  api-gateway:
+    <<: *python-service
+    build: { context: ./services, args: { SERVICE: api-gateway } }
+    image: occasionx/api-gateway
+    depends_on:
+      - auth-service
+      - user-service
+      - provider-service
+      - catalog-service
+      - booking-service
+      - collab-service
+      - search-service
+      - ai-service
+    environment:
+      <<: [*common-env, *service-urls]
+
+  # ----------------------------------------------------------------- web
+  web:
+    build:
+      context: ./frontend/web-app
+      args:
+        NEXT_PUBLIC_API_GATEWAY: https://${API_DOMAIN:?set API_DOMAIN in .env}
+        NEXT_PUBLIC_RAZORPAY_KEY: ${RAZORPAY_KEY_ID}
+        NEXT_PUBLIC_PAYMENT_TEST_MODE: ${PAYMENT_TEST_MODE:-false}
+    image: occasionx/web
+    restart: unless-stopped
+    networks: [internal]
+    depends_on: [api-gateway]
+
+  # --------------------------------------------------------------- proxy
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks: [internal]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      WEB_DOMAIN: ${WEB_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api-gateway]
+
+networks:
+  internal:
+
+volumes:
+  postgres_data:
+  redis_data:
+  provider_uploads:
+  caddy_data:
+  caddy_config:
