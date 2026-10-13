@@ -21,6 +21,9 @@ from app.crud.booking_charge import (
     BookingChargeError,
 )
 
+from app.core.service_auth import current_user, ensure_self_or_admin
+from app.core.ownership import ensure_order_owner
+
 router = APIRouter(
     prefix="/payments/booking-charge",
     tags=["Booking Service Charge"]
@@ -33,8 +36,11 @@ router = APIRouter(
 )
 def create_booking_charge_order_api(
     payload: CreateBookingChargeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_self_or_admin(user, payload.customer_id)
+
     try:
         return create_booking_charge_order(db, payload.customer_id)
     except BookingChargeError as e:
@@ -49,8 +55,11 @@ def create_booking_charge_order_api(
 )
 def verify_booking_charge_api(
     payload: VerifyBookingChargeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_order_owner(db, user, payload.razorpay_order_id)
+
     try:
         charge = verify_and_complete_booking_charge(db, payload)
     except BookingChargeError as e:
@@ -70,7 +79,8 @@ def verify_booking_charge_api(
 )
 def test_confirm_booking_charge_api(
     payload: TestConfirmBookingChargeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
     """
     Dev-only endpoint the frontend calls instead of Razorpay checkout
@@ -78,6 +88,8 @@ def test_confirm_booking_charge_api(
     the server-side guard that keeps this from working outside test
     mode.
     """
+
+    ensure_order_owner(db, user, payload.order_id)
 
     try:
         charge = confirm_test_booking_charge(db, payload.order_id)

@@ -5,3 +5,4 @@ pydantic==2.13.4
 python-dotenv==1.2.2
 openai==2.46.0
 httpx==0.28.1
+python-jose[cryptography]==3.5.0

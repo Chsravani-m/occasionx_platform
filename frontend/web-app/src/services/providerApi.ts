@@ -54,6 +54,10 @@ export interface ProviderRegisterResponse {
   // instead of creating a brand new account - see register_provider
   // in services/auth-service/app/services/auth_service.py.
   resuming?: boolean;
+  // Short-lived token for finishing the registration wizard (saving
+  // the remaining steps and paying the registration fee) before the
+  // account is activated - see ONBOARDING_TOKEN_KEY in lib/apiClient.
+  onboarding_token: string;
 }
 
 export const registerProvider = async (

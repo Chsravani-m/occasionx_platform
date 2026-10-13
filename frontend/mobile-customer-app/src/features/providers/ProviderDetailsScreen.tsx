@@ -224,7 +224,7 @@ export default function ProviderDetailsScreen({ route, navigation }: Props) {
   // Free members get a small OX Application Fee folded into the same
   // combined payment - paid members skip it entirely. Same rule as
   // the web app (utils/bookingCharge.ts / isPaidMember()).
-  const applicationFee = !isPaidMember && selectedPackage ? 1 : 0;
+  const applicationFee = !isPaidMember && selectedPackage ? 99 : 0;
   const total = packageTotal + applicationFee;
 
   const toggleWishlist = async () => {

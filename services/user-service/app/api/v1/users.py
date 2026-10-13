@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.core.dependencies import (
     get_current_user
 )
+from app.core.service_auth import require_internal
 
 from app.schemas.user import (
     UserProfileCreate,
@@ -33,7 +34,8 @@ router = APIRouter(
 @router.post("/internal/create-profile")
 def create_empty_user_profile(
     request: InternalProfileCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    caller: dict = Depends(require_internal)
 ):
     return create_empty_profile(
         db,

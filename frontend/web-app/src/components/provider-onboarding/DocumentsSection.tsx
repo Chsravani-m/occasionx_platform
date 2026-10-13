@@ -1,5 +1,5 @@
 "use client";
-import { API_GATEWAY_URL } from "@/lib/apiClient";
+import { openProtectedFile } from "@/lib/apiClient";
 
 import { useEffect, useState } from "react";
 import { useToast, useConfirm } from "@/context/NotificationContext";
@@ -232,9 +232,13 @@ useEffect(() => {
                   </p>
                 </div>
 
-                <a
-                  href={`${API_GATEWAY_URL}${doc.document_url}`}
-                  target="_blank"
+                <button
+                  type="button"
+                  onClick={() =>
+                    openProtectedFile(doc.document_url).catch(() =>
+                      toast.error("Couldn't open this document.")
+                    )
+                  }
                   className="
                     bg-[#F8F6F2]
                     px-4
@@ -243,7 +247,7 @@ useEffect(() => {
                   "
                 >
                   View
-                </a>
+                </button>
 
               </div>
 

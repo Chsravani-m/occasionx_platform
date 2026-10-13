@@ -22,6 +22,8 @@ from app.schemas.subcategory import (
     SubCategoryUpdateRequest
 )
 
+from app.core.service_auth import require_admin
+
 router = APIRouter(
     prefix="/categories",
     tags=["Subcategories"]
@@ -49,7 +51,8 @@ def get_subcategories(
 def create_subcategory_api(
     category_id: UUID,
     payload: SubCategoryCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         return create_subcategory(
@@ -73,7 +76,8 @@ def create_subcategory_api(
 def update_subcategory_api(
     subcategory_id: UUID,
     payload: SubCategoryUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     subcategory = update_subcategory(
         db, subcategory_id, payload
@@ -91,7 +95,8 @@ def update_subcategory_api(
 @router.delete("/subcategories/{subcategory_id}")
 def delete_subcategory_api(
     subcategory_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         deleted = delete_subcategory(db, subcategory_id)

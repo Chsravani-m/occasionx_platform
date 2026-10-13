@@ -8,11 +8,29 @@ export const api = axios.create({
   baseURL: API_GATEWAY_URL,
 });
 
+// Limited token returned by POST /auth/register-provider. A new
+// provider can't log in until their registration fee is paid and the
+// account is activated, so the registration wizard uses this token to
+// save the remaining steps and pay the fee. The backend only accepts it
+// for that provider's own onboarding endpoints.
+export const ONBOARDING_TOKEN_KEY = "providerOnboardingToken";
+
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem(ONBOARDING_TOKEN_KEY)
+  );
+}
+
+// For the few places that call the API with fetch() instead of `api`.
+export function authHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 api.interceptors.request.use((config) => {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("accessToken")
-      : null;
+  const token = getAuthToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -102,3 +120,27 @@ api.interceptors.response.use(
 );
 
 export default api;
+// KYC documents (/uploads/provider-documents/...) need the login token,
+// so they can't be opened with a plain <a href>. Fetches the file with
+// the token and opens it in a new tab.
+export async function openProtectedFile(path: string): Promise<void> {
+  // Opened before the request so the browser doesn't treat it as an
+  // unrequested popup.
+  const tab = window.open("", "_blank");
+
+  try {
+    const res = await api.get(path, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data as Blob);
+
+    if (tab) {
+      tab.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    tab?.close();
+    throw error;
+  }
+}

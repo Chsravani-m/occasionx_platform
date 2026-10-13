@@ -103,13 +103,16 @@ export interface ProviderRegisterResult {
   // registration (same phone/email, fee unpaid, not yet activated)
   // instead of creating a brand new account.
   resuming?: boolean;
+  // Short-lived token for finishing onboarding before activation - see
+  // setOnboardingToken in core/api/client.ts.
+  onboarding_token: string;
 }
 
 // Unlike the customer register() above, this creates the User *and*
 // Provider rows in one call and does NOT log the provider in - no
-// tokens come back. The provider finishes onboarding (location,
+// session tokens come back. The provider finishes onboarding (location,
 // services, pricing, availability, KYC, documents, registration fee)
-// unauthenticated using the returned provider_id, then can only sign in
+// with the returned onboarding_token, then can only sign in
 // for real once they've clicked the activation link emailed after
 // payment (see auth-service's login_user, which 401s with an "activate
 // your account" message until then).

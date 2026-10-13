@@ -36,6 +36,7 @@ import {
   type Subcategory,
 } from "@/services/catalogApi";
 
+import { ONBOARDING_TOKEN_KEY } from "@/lib/apiClient";
 import { updateBankDetails } from "@/services/providerBankApi";
 import { uploadProviderDocument } from "@/services/providerDocumentApi";
 import {
@@ -557,6 +558,7 @@ function Tab2ContactDetails({
 
       localStorage.setItem("provider_id", response.provider_id);
       localStorage.setItem("user_id", response.user_id);
+      localStorage.setItem(ONBOARDING_TOKEN_KEY, response.onboarding_token);
 
       clearProviderTermsAcceptance();
 

@@ -1,3 +1,10 @@
+from app.core.service_auth import install_internal_auth
+
+# Calls this service makes to other OccasionX services identify
+# themselves with the internal key (see app/core/service_auth.py).
+# Installed first, before any startup code below makes such a call.
+install_internal_auth()
+
 from pathlib import Path
 
 from dotenv import load_dotenv

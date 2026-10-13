@@ -17,14 +17,14 @@ class BookingChargeError(Exception):
     pass
 
 
-# TEMP for testing real transactions with PAYMENT_TEST_MODE=false: the
-# real booking service charge is meant to be Rs.99 (9900 paise) - it's
-# set to Rs.1 (100) here so real Razorpay charges during testing are
-# nominal instead of Rs.99 each. Change back to 9900 before this is
-# customer-facing for real. Exported so crud/payment.py's combined
-# order can fold this same amount into a single payment instead of
-# collecting it as a separate charge/popup.
-BOOKING_CHARGE_AMOUNT_PAISE = 100
+# Booking service charge in paise (default Rs.99), collected from
+# free-plan customers per booking. Override with the
+# BOOKING_CHARGE_AMOUNT_PAISE environment variable. Exported so
+# crud/payment.py's combined order can fold this same amount into a
+# single payment instead of collecting it as a separate charge/popup.
+BOOKING_CHARGE_AMOUNT_PAISE = int(
+    os.getenv("BOOKING_CHARGE_AMOUNT_PAISE", "9900")
+)
 
 
 def create_booking_charge_order(db: Session, customer_id):

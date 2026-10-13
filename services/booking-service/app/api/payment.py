@@ -31,6 +31,13 @@ from app.crud.payment import (
     PaymentError
 )
 
+from app.core.service_auth import current_user, ensure_self_or_admin
+from app.core.ownership import (
+    ensure_booking_owner,
+    ensure_bookings_owner,
+    ensure_order_owner,
+)
+
 router = APIRouter(
     prefix="/payments",
     tags=["Payments"]
@@ -43,8 +50,11 @@ router = APIRouter(
 )
 def create_order_api(
     payload: CreateOrderRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_booking_owner(db, user, payload.booking_id)
+
     try:
         return create_order(db, payload.booking_id)
     except PaymentError as e:
@@ -65,8 +75,12 @@ def create_order_api(
 )
 def verify_payment_api(
     payload: VerifyPaymentRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_booking_owner(db, user, payload.booking_id)
+    ensure_order_owner(db, user, payload.razorpay_order_id)
+
     try:
         booking = verify_and_complete_payment(db, payload)
     except PaymentError as e:
@@ -95,7 +109,8 @@ def verify_payment_api(
 )
 def create_combined_order_api(
     payload: CreateCombinedOrderRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
     """
     Combined-order equivalent of /create-order - covers every booking
@@ -103,6 +118,10 @@ def create_combined_order_api(
     split per-provider on the backend via Route instead of the
     frontend opening one popup per booking.
     """
+
+    ensure_bookings_owner(db, user, payload.booking_ids)
+    if payload.customer_id is not None:
+        ensure_self_or_admin(user, payload.customer_id)
 
     try:
         return create_combined_order(
@@ -129,8 +148,11 @@ def create_combined_order_api(
 )
 def verify_combined_payment_api(
     payload: VerifyCombinedPaymentRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_order_owner(db, user, payload.razorpay_order_id)
+
     try:
         bookings = verify_and_complete_combined_payment(db, payload)
     except PaymentError as e:
@@ -159,8 +181,11 @@ def verify_combined_payment_api(
 )
 def combined_test_confirm_payment_api(
     payload: CombinedTestConfirmRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_order_owner(db, user, payload.order_id)
+
     """
     Dev-only endpoint the frontend calls instead of Razorpay checkout
     when PAYMENT_TEST_MODE=true, for the combined multi-booking order
@@ -191,8 +216,11 @@ def combined_test_confirm_payment_api(
 )
 def test_confirm_payment_api(
     payload: TestConfirmRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_order_owner(db, user, payload.order_id)
+
     """
     Dev-only endpoint the frontend calls instead of Razorpay checkout
     when PAYMENT_TEST_MODE=true. See confirm_test_payment for the

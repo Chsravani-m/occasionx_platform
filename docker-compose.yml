@@ -39,9 +39,14 @@ x-jwt-env: &jwt-env
   SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
   ALGORITHM: HS256
   ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+  # Optional; derived from SECRET_KEY when empty (see service_auth.py).
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
 
 x-payment-env: &payment-env
   PAYMENT_TEST_MODE: ${PAYMENT_TEST_MODE:-false}
+  MEMBERSHIP_FEE_PAISE: ${MEMBERSHIP_FEE_PAISE:-49900}
+  BOOKING_CHARGE_AMOUNT_PAISE: ${BOOKING_CHARGE_AMOUNT_PAISE:-9900}
+  PROVIDER_REGISTRATION_FEE_PAISE: ${PROVIDER_REGISTRATION_FEE_PAISE:-99900}
   RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?set RAZORPAY_KEY_ID in .env}
   RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?set RAZORPAY_KEY_SECRET in .env}
 
@@ -53,7 +58,7 @@ x-smtp-env: &smtp-env
   SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
 
 x-whatsapp-env: &whatsapp-env
-  WHATSAPP_TEST_MODE: ${WHATSAPP_TEST_MODE:-true}
+  WHATSAPP_TEST_MODE: ${WHATSAPP_TEST_MODE:-false}
   WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
   WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
   WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION:-v21.0}
@@ -166,7 +171,7 @@ services:
     image: occasionx/collab-service
     depends_on: *depends-db
     environment:
-      <<: [*common-env, *service-urls, *smtp-env, *whatsapp-env]
+      <<: [*common-env, *service-urls, *jwt-env, *smtp-env, *whatsapp-env]
       DATABASE_URL: postgresql+psycopg://${DB_USER:-occasionx}:${DB_PASSWORD}@postgres:5432/occasionx_collab_db
 
   search-service:
@@ -174,14 +179,14 @@ services:
     build: { context: ./services, args: { SERVICE: search-service } }
     image: occasionx/search-service
     environment:
-      <<: [*common-env, *service-urls]
+      <<: [*common-env, *service-urls, *jwt-env]
 
   ai-service:
     <<: *python-service
     build: { context: ./services, args: { SERVICE: ai-service } }
     image: occasionx/ai-service
     environment:
-      <<: [*common-env, *service-urls]
+      <<: [*common-env, *service-urls, *jwt-env]
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
 

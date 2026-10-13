@@ -22,6 +22,9 @@ from app.crud.provider_category import (
     get_providers_for_category
 )
 
+from app.core.service_auth import onboarding_user
+from app.core.ownership import ensure_can_manage_provider
+
 router = APIRouter(
     prefix="/providers",
     tags=["Provider Categories"]
@@ -56,8 +59,11 @@ def get_providers_by_category(
 def assign_provider_categories(
     provider_id: UUID,
     request: ProviderCategoryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     return assign_categories(
         db,
         provider_id,
@@ -85,8 +91,11 @@ def get_categories(
 def delete_category(
     provider_id: UUID,
     mapping_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     deleted = delete_provider_category(
         db,
         provider_id,
@@ -112,8 +121,11 @@ def delete_category(
 def update_provider_categories(
     provider_id: UUID,
     request: ProviderCategoryCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     return assign_categories(
         db,
         provider_id,

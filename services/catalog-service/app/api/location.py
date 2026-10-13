@@ -32,6 +32,8 @@ from app.crud.location import (
 )
 
 
+from app.core.service_auth import require_admin
+
 router = APIRouter(
     prefix="/locations",
     tags=["Locations"]
@@ -160,7 +162,8 @@ def location_labels(
 @router.post("/admin/locations")
 def create_location(
     request: CreateLocationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     location = Location(
         district_id=request.district_id,
@@ -177,7 +180,8 @@ def create_location(
 def update_location(
     location_id: int,
     request: UpdateLocationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     location = (
         db.query(Location)
@@ -201,7 +205,8 @@ def update_location(
 @router.delete("/admin/locations/{location_id}")
 def delete_location(
     location_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     location = (
         db.query(Location)

@@ -41,6 +41,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 WHATSAPP_TEST_MODE = os.getenv("WHATSAPP_TEST_MODE", "true") == "true"
+
+# Returning the OTP in the API response lets developers test without
+# WhatsApp, but it means anyone can log in as anyone. Never allowed in
+# production (APP_ENV=production, set by docker-compose.yml), even if
+# WHATSAPP_TEST_MODE is accidentally left on - codes are then simply
+# not delivered until the Meta credentials are configured.
+IS_PRODUCTION = os.getenv("APP_ENV", "").lower() == "production"
+EXPOSE_TEST_OTP = WHATSAPP_TEST_MODE and not IS_PRODUCTION
+
+if WHATSAPP_TEST_MODE and IS_PRODUCTION:
+    print(
+        "WARNING: WHATSAPP_TEST_MODE=true in production - WhatsApp OTP "
+        "codes are NOT being delivered. Set WHATSAPP_TEST_MODE=false and "
+        "WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID."
+    )
 WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_API_VERSION = os.getenv("WHATSAPP_API_VERSION", "v21.0")

@@ -10,7 +10,7 @@ import {
   DocumentType,
 } from "@/features/registration/providerRegistrationApi";
 import type { RNFile } from "@/features/portfolio/providerPortfolioApi";
-import { RAZORPAY_KEY_ID } from "@/core/api/client";
+import { RAZORPAY_KEY_ID, clearOnboardingToken } from "@/core/api/client";
 import PaymentWebView, { RazorpaySuccess } from "@/core/components/PaymentWebView";
 import PrimaryButton from "@/core/components/PrimaryButton";
 import { Screen } from "@/core/components/Screen";
@@ -101,6 +101,7 @@ export default function ProviderSetupScreen({ route, navigation }: Props) {
         // web app uses (see providerRegistrationApi.ts).
         const result = await markRegistrationPaid(providerId);
         if (result.activation_link) setActivationLink(result.activation_link);
+        await clearOnboardingToken();
         setStep("done");
         return;
       }
@@ -129,6 +130,7 @@ export default function ProviderSetupScreen({ route, navigation }: Props) {
         razorpay_payment_id: result.razorpay_payment_id,
         razorpay_signature: result.razorpay_signature,
       });
+      await clearOnboardingToken();
       setStep("done");
     } catch {
       Alert.alert("Payment verification failed", "Please contact support if the amount was deducted.");

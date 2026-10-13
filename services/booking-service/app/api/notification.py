@@ -20,6 +20,9 @@ from app.crud.notification import (
     mark_read
 )
 
+from app.core.service_auth import current_user, ensure_self_or_admin
+from app.db.models.notification import Notification
+
 router = APIRouter(
     prefix="/notifications",
     tags=["Notifications"]
@@ -34,8 +37,11 @@ router = APIRouter(
 )
 def list_notifications(
     user_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_self_or_admin(user, user_id)
+
     return get_user_notifications(
         db,
         user_id
@@ -48,8 +54,11 @@ def list_notifications(
 )
 def unread_count(
     user_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_self_or_admin(user, user_id)
+
     return {
         "unread_count": get_unread_count(
             db,
@@ -63,8 +72,11 @@ def unread_count(
 )
 def read_all(
     user_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_self_or_admin(user, user_id)
+
     mark_all_read(
         db,
         user_id
@@ -81,8 +93,18 @@ def read_all(
 )
 def read_one(
     notification_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    existing = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id)
+        .first()
+    )
+
+    if existing is not None:
+        ensure_self_or_admin(user, existing.user_id)
+
     notification = mark_read(
         db,
         notification_id

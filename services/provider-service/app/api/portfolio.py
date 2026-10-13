@@ -54,6 +54,12 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024      # 10 MB
 MAX_VIDEO_SIZE = 100 * 1024 * 1024     # 100 MB
 MAX_ZIP_SIZE = 250 * 1024 * 1024       # 250 MB
 
+from app.core.service_auth import onboarding_user
+from app.core.ownership import (
+    ensure_can_manage_provider,
+    ensure_can_manage_portfolio,
+)
+
 router = APIRouter(
     prefix="/providers",
     tags=["Portfolio"]
@@ -126,8 +132,11 @@ async def upload_portfolio(
 
     file: UploadFile = File(...),
 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     os.makedirs(
     "uploads/portfolio/images",
     exist_ok=True
@@ -237,8 +246,11 @@ def portfolio_summary(
 )
 def remove_portfolio(
     portfolio_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_portfolio(db, user, portfolio_id)
+
     deleted = delete_portfolio(
         db,
         portfolio_id

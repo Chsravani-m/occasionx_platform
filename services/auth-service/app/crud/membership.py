@@ -18,6 +18,11 @@ class MembershipPaymentError(Exception):
     pass
 
 
+# Paid-membership fee in paise (default Rs.499). Override with the
+# MEMBERSHIP_FEE_PAISE environment variable.
+MEMBERSHIP_FEE_PAISE = int(os.getenv("MEMBERSHIP_FEE_PAISE", "49900"))
+
+
 def create_membership_order(db: Session, user_id):
     user = (
         db.query(User)
@@ -38,10 +43,7 @@ def create_membership_order(db: Session, user_id):
     # checkout entirely and calls the test-confirm endpoint below.
     test_mode = os.getenv("PAYMENT_TEST_MODE") == "true"
 
-    # TEMPORARY: pinned to Rs.1 for live testing of the real Razorpay
-    # checkout flow (instead of the normal Rs.499 membership fee).
-    # Revert to 49900 once testing is done.
-    amount_paise = 100
+    amount_paise = MEMBERSHIP_FEE_PAISE
 
     if test_mode:
         order_id = f"test_order_{uuid.uuid4().hex}"

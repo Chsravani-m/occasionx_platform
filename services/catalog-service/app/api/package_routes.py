@@ -19,6 +19,8 @@ from app.services.package_service import (
     PackageService
 )
 
+from app.core.service_auth import require_admin
+
 router = APIRouter(
     prefix="/packages",
     tags=["Packages"]
@@ -28,7 +30,8 @@ router = APIRouter(
 @router.post("")
 def create_package(
     payload: PackageCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     return PackageService.create_package(
         db,
@@ -66,7 +69,8 @@ def get_package(
 def update_package(
     package_id: UUID,
     payload: PackageUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     package = PackageService.update_package(
         db,
@@ -86,7 +90,8 @@ def update_package(
 @router.delete("/{package_id}")
 def delete_package(
     package_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     package = PackageService.delete_package(
         db,

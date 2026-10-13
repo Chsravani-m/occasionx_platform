@@ -36,6 +36,8 @@ load_dotenv()
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+from app.core.service_auth import current_user, ensure_self_or_admin
+
 router = APIRouter(prefix="/collab", tags=["Collab Sessions"])
 
 
@@ -60,7 +62,11 @@ def _get_participant_or_404(db: Session, session, participant_id: UUID):
 
 
 @router.post("/sessions", response_model=SessionStateResponse)
-def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db)):
+def create_session(payload: CreateSessionRequest, db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
+):
+    # The host is whoever is logged in - not just whoever names them.
+    ensure_self_or_admin(user, payload.host_user_id)
     session = crud.create_session(
         db,
         host_user_id=payload.host_user_id,
@@ -80,7 +86,10 @@ def send_invite(
     session_id: UUID,
     payload: SendInviteRequest,
     db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    # The host is whoever is logged in - not just whoever names them.
+    ensure_self_or_admin(user, payload.host_user_id)
     session = _get_session_or_404(db, session_id)
 
     if session.host_user_id != payload.host_user_id:
@@ -236,8 +245,11 @@ def send_message(
 
 @router.post("/sessions/{session_id}/close", response_model=SessionStateResponse)
 def close_session(
-    session_id: UUID, host_user_id: UUID, db: Session = Depends(get_db)
+    session_id: UUID, host_user_id: UUID, db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    # The host is whoever is logged in - not just whoever names them.
+    ensure_self_or_admin(user, host_user_id)
     session = _get_session_or_404(db, session_id)
     if session.host_user_id != host_user_id:
         raise HTTPException(
@@ -265,7 +277,10 @@ def start_screen_share(
     session_id: UUID,
     payload: StartScreenShareRequest,
     db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    # The host is whoever is logged in - not just whoever names them.
+    ensure_self_or_admin(user, payload.host_user_id)
     session = _get_session_or_404(db, session_id)
     if session.host_user_id != payload.host_user_id:
         raise HTTPException(
@@ -291,7 +306,10 @@ def stop_screen_share(
     session_id: UUID,
     payload: StopScreenShareRequest,
     db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    # The host is whoever is logged in - not just whoever names them.
+    ensure_self_or_admin(user, payload.host_user_id)
     session = _get_session_or_404(db, session_id)
     if session.host_user_id != payload.host_user_id:
         raise HTTPException(

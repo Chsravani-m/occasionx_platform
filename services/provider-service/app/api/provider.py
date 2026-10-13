@@ -90,6 +90,17 @@ from app.crud.razorpay_account import (
     setup_linked_account,
     RazorpayAccountError
 )
+from app.core.service_auth import (
+    current_user,
+    optional_onboarding_user,
+    onboarding_user,
+    require_admin,
+    require_internal,
+)
+from app.core.ownership import (
+    ensure_can_manage_provider,
+    public_provider,
+)
 import json
 
 router = APIRouter(
@@ -97,13 +108,20 @@ router = APIRouter(
     tags=["Providers"]
 )
 
+# One-time provider registration fee, in paise (default Rs.999).
+REGISTRATION_FEE_PAISE = int(
+    os.getenv("PROVIDER_REGISTRATION_FEE_PAISE", "99900")
+)
+
 @router.get(
     "/",
     response_model=list[ProviderResponse]
 )
 def list_providers(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_admin)
 ):
+    # Every provider, including unverified/unpaid sign-ups - admin only.
     return get_all_providers(db)
 
 @router.post(
@@ -112,8 +130,11 @@ def list_providers(
 )
 def register_provider(
     provider: ProviderCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_internal)
 ):
+    # Provider records are created by auth-service as part of
+    # POST /auth/register-provider, never directly by a browser.
     return create_provider(
         db,
         provider
@@ -124,7 +145,8 @@ def register_provider(
     response_model=ProviderStatsResponse
 )
 def provider_stats(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_admin)
 ):
     return get_provider_stats(db)
 
@@ -133,9 +155,13 @@ def provider_stats(
     response_model=list[ProviderResponse]
 )
 def list_verified_providers(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict | None = Depends(optional_onboarding_user)
 ):
-    return get_verified_providers(db)
+    return [
+        public_provider(p, user)
+        for p in get_verified_providers(db)
+    ]
 
 @router.get(
     "/{provider_id}/verification-details",
@@ -144,8 +170,10 @@ def list_verified_providers(
 )
 def provider_verification_details(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
 
     result = (
         get_provider_verification_details(
@@ -168,8 +196,10 @@ def provider_verification_details(
 )
 def provider_dashboard(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
     dashboard = get_provider_dashboard(
         db,
         provider_id
@@ -218,7 +248,8 @@ def get_recent_providers_api(
 )
 def get_provider(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict | None = Depends(optional_onboarding_user)
 ):
     provider = get_provider_by_id(
         db,
@@ -231,7 +262,7 @@ def get_provider(
             detail="Provider not found"
         )
 
-    return provider
+    return public_provider(provider, user)
 
 @router.put(
     "/{provider_id}",
@@ -240,8 +271,10 @@ def get_provider(
 def update_provider_api(
     provider_id: UUID,
     provider_data: ProviderUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
     provider = update_provider(
         db,
         provider_id,
@@ -273,8 +306,11 @@ MAX_DISPLAY_PICTURE_SIZE = 10 * 1024 * 1024  # 10 MB
 async def upload_display_picture(
     provider_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """
     A dedicated profile/cover photo the provider sets themselves,
     distinct from portfolio media - shown as the background behind
@@ -340,8 +376,11 @@ PROMO_VIDEO_TYPES = [
 async def upload_logo(
     provider_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """Tab 1 (Business Information) - Logo Upload."""
 
     provider = get_provider_by_id(db, provider_id)
@@ -380,8 +419,11 @@ async def upload_logo(
 async def upload_cover_image(
     provider_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """Tab 1 (Business Information) - Cover Image."""
 
     provider = get_provider_by_id(db, provider_id)
@@ -420,8 +462,11 @@ async def upload_cover_image(
 async def upload_promotional_video(
     provider_id: UUID,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """Tab 1 (Business Information) - Promotional Video."""
 
     provider = get_provider_by_id(db, provider_id)
@@ -463,7 +508,8 @@ async def upload_promotional_video(
 def submit_provider_rating_api(
     provider_id: UUID,
     payload: RatingSubmission,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_internal)
 ):
     """
     Internal endpoint called by booking-service whenever a customer
@@ -494,8 +540,11 @@ def submit_provider_rating_api(
 )
 def get_linked_account_id_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """
     Internal endpoint called by booking-service when creating a
     booking's payment order, to decide whether the service-fee amount
@@ -524,8 +573,11 @@ def get_linked_account_id_api(
 )
 def get_bank_details_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     provider = get_provider_by_id(db, provider_id)
 
     if not provider:
@@ -550,8 +602,11 @@ def get_bank_details_api(
 def update_bank_details_api(
     provider_id: UUID,
     payload: BankDetailsUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     provider = update_provider(db, provider_id, payload)
 
     if not provider:
@@ -575,8 +630,11 @@ def update_bank_details_api(
 )
 def get_location_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     location = get_provider_location(db, provider_id)
 
     if location is None:
@@ -592,8 +650,11 @@ def get_location_api(
 def update_location_api(
     provider_id: UUID,
     payload: LocationUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     location = update_provider_location(db, provider_id, payload)
 
     if location is None:
@@ -608,8 +669,11 @@ def update_location_api(
 )
 def get_services_tab_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = get_provider_services_tab(db, provider_id)
 
     if result is None:
@@ -625,8 +689,11 @@ def get_services_tab_api(
 def update_services_tab_api(
     provider_id: UUID,
     payload: ServicesTabUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = update_provider_services_tab(db, provider_id, payload)
 
     if result is None:
@@ -641,8 +708,11 @@ def update_services_tab_api(
 )
 def get_pricing_tab_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = get_provider_pricing_tab(db, provider_id)
 
     if result is None:
@@ -658,8 +728,11 @@ def get_pricing_tab_api(
 def update_pricing_tab_api(
     provider_id: UUID,
     payload: PricingTabUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = update_provider_pricing_tab(db, provider_id, payload)
 
     if result is None:
@@ -674,8 +747,11 @@ def update_pricing_tab_api(
 )
 def get_availability_tab_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = get_provider_availability_tab(db, provider_id)
 
     if result is None:
@@ -691,8 +767,11 @@ def get_availability_tab_api(
 def update_availability_tab_api(
     provider_id: UUID,
     payload: AvailabilityTabUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = update_provider_availability_tab(db, provider_id, payload)
 
     if result is None:
@@ -708,8 +787,11 @@ def update_availability_tab_api(
 def update_kyc_api(
     provider_id: UUID,
     payload: KycUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     result = update_provider_kyc(db, provider_id, payload)
 
     if result is None:
@@ -755,8 +837,11 @@ def get_booking_policy_api(
 def update_booking_policy_api(
     provider_id: UUID,
     payload: BookingPolicyUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     if payload.booking_notice_hours < 0:
         raise HTTPException(
             status_code=400,
@@ -800,8 +885,11 @@ def _razorpay_account_status_response(
 )
 def get_razorpay_account_status_api(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     provider = get_provider_by_id(db, provider_id)
 
     if not provider:
@@ -820,8 +908,11 @@ def get_razorpay_account_status_api(
 def setup_razorpay_account_api(
     provider_id: UUID,
     payload: RazorpayAccountSetupRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     """
     Kicks off (or resumes) Razorpay's Route linked-account onboarding
     for this provider, so booking-service can start splitting payments
@@ -897,7 +988,8 @@ def setup_razorpay_account_api(
 )
 def get_provider_by_user_id_api(
     user_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict | None = Depends(optional_onboarding_user)
 ):
     provider = get_provider_by_user_id(
         db,
@@ -910,7 +1002,7 @@ def get_provider_by_user_id_api(
             detail="Provider not found"
         )
 
-    return provider
+    return public_provider(provider, user)
 
 @router.get(
     "/{provider_id}/details",
@@ -1021,21 +1113,11 @@ def get_provider_details(
     
 def create_registration_payment(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
-    provider = (
-        db.query(Provider)
-        .filter(
-            Provider.id == provider_id
-        )
-        .first()
-    )
+    provider = ensure_can_manage_provider(db, user, provider_id)
 
-    if not provider:
-        raise HTTPException(
-            status_code=404,
-            detail="Provider not found"
-        )
     if provider.registration_fee_paid:
         raise HTTPException(
             status_code=400,
@@ -1046,7 +1128,7 @@ def create_registration_payment(
 
     test_mode = os.getenv("PAYMENT_TEST_MODE") == "true"
 
-    amount = 100 if test_mode else 99900
+    amount = 100 if test_mode else REGISTRATION_FEE_PAISE
 
     # In test mode, no real Razorpay order is created at all - the
     # live keys in .env are real production credentials, so even a
@@ -1070,10 +1152,19 @@ def create_registration_payment(
 
         order = client.order.create({
             "amount": amount,
-            "currency": "INR"
+            "currency": "INR",
+            "notes": {
+                "purpose": "provider_registration_fee",
+                "provider_id": str(provider.id),
+            },
         })
 
         order_id = order["id"]
+
+    # Remembered so verify_registration_payment only accepts a payment
+    # made against this provider's own registration-fee order.
+    provider.registration_order_id = order_id
+    db.commit()
 
     return {
         "order_id": order_id,
@@ -1114,7 +1205,8 @@ def _complete_registration_payment(
 @router.post("/{provider_id}/mark-registration-paid")
 def mark_registration_paid(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
     # Dev-only shortcut the frontend calls instead of Razorpay
     # checkout + signature verification when PAYMENT_TEST_MODE=true.
@@ -1126,17 +1218,7 @@ def mark_registration_paid(
             detail="Test payment confirmation is disabled."
         )
 
-    provider = (
-        db.query(Provider)
-        .filter(Provider.id == provider_id)
-        .first()
-    )
-
-    if not provider:
-        raise HTTPException(
-            status_code=404,
-            detail="Provider not found"
-        )
+    provider = ensure_can_manage_provider(db, user, provider_id)
 
     _, token = _complete_registration_payment(db, provider)
 
@@ -1158,21 +1240,26 @@ def mark_registration_paid(
 def verify_registration_payment(
     provider_id: UUID,
     request: PaymentVerificationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
 
-    provider = (
-        db.query(Provider)
-        .filter(
-            Provider.id == provider_id
-        )
-        .first()
-    )
+    provider = ensure_can_manage_provider(db, user, provider_id)
 
-    if not provider:
+    if provider.registration_fee_paid:
+        return {"success": True}
+
+    # The signature check below only proves Razorpay issued this
+    # order/payment pair - not that it is THIS provider's registration
+    # fee. Without this check, any cheap payment made anywhere on the
+    # platform could be replayed here to skip the fee.
+    if (
+        not provider.registration_order_id
+        or request.razorpay_order_id != provider.registration_order_id
+    ):
         raise HTTPException(
-            status_code=404,
-            detail="Provider not found"
+            status_code=400,
+            detail="Payment does not match this registration"
         )
 
     client = razorpay.Client(
@@ -1204,6 +1291,28 @@ def verify_registration_payment(
             status_code=400,
             detail="Payment verification failed"
         )
+
+    # Confirm with Razorpay that the payment really is for the full fee
+    # on this order and has gone through.
+    try:
+        payment = client.payment.fetch(request.razorpay_payment_id)
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not confirm the payment with Razorpay"
+        )
+
+    if (
+        payment.get("order_id") != provider.registration_order_id
+        or payment.get("status") not in ("authorized", "captured")
+        or int(payment.get("amount") or 0) < REGISTRATION_FEE_PAISE
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Payment verification failed"
+        )
+
+    provider.registration_fee_amount = int(payment["amount"]) / 100
 
     _complete_registration_payment(db, provider)
 

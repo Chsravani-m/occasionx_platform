@@ -1,29 +1,12 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
+from app.core.service_auth import current_user, ensure_self_or_admin
 
-from app.core.security import decode_token
-
-security = HTTPBearer()
-
-
-def get_current_user(
-    token=Depends(security)
-):
-    payload = decode_token(
-        token.credentials
-    )
-
-    if not payload:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
-
-    return payload
+# Kept under their old names for existing imports; token validation
+# (and rejection of refresh / onboarding tokens) lives in service_auth.
+get_current_user = current_user
 
 
 def require_self_or_admin(
-    resource_owner_id: str,
+    resource_owner_id,
     current_user: dict
 ):
     """
@@ -31,12 +14,4 @@ def require_self_or_admin(
     token 'sub' matches resource_owner_id) or is an admin. Use for any
     endpoint scoped by a customer_id/user_id path param.
     """
-
-    if current_user.get("role") in ("ADMIN", "SUPER_ADMIN"):
-        return
-
-    if current_user.get("sub") != str(resource_owner_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to access this resource"
-        )
+    ensure_self_or_admin(current_user, resource_owner_id)
