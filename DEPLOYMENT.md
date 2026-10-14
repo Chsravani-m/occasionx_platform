@@ -202,6 +202,7 @@ Done:
       provider's own registration-fee order, and checks with Razorpay
       that it is paid in full
 - [x] KYC files under `/uploads/provider-documents/` need a login
+- [x] Razorpay webhook as a backstop for closed tabs (see section 11)
 - [x] Real prices: membership Rs.499, booking charge Rs.99 (env
       `MEMBERSHIP_FEE_PAISE`, `BOOKING_CHARGE_AMOUNT_PAISE`,
       `PROVIDER_REGISTRATION_FEE_PAISE`)
@@ -212,7 +213,36 @@ Still open:
       codes over WhatsApp. Until `WHATSAPP_ACCESS_TOKEN` /
       `WHATSAPP_PHONE_NUMBER_ID` are set with `WHATSAPP_TEST_MODE=false`,
       providers cannot register in production.
-- [ ] Razorpay `payment.captured` webhook as a backstop for closed tabs
 - [ ] Payout split (Razorpay Route) verified with a real linked account
 - [ ] Rate limiting on login/OTP and on the AI endpoints (`/ai/*`), which
       are public and call OpenAI
+
+## 11. Razorpay webhook
+
+Confirms payments even when the customer closes the tab before the
+browser reports back. In the Razorpay dashboard (live mode), go to
+**Settings -> Webhooks -> Add new webhook**:
+
+- URL: `https://<API_DOMAIN>/payments/webhook/razorpay`
+- Secret: a long random string - put the same value in `.env` as
+  `RAZORPAY_WEBHOOK_SECRET`
+- Events: `payment.captured` and `order.paid`
+
+It handles bookings, booking service charges, memberships and provider
+registration fees, and is safe to receive twice. If money arrives for a
+booking that already expired or was cancelled, or for less than the
+order amount, the payment is marked `PAID_NEEDS_REVIEW` instead of
+confirming anything. Check for these regularly and refund them from the
+Razorpay dashboard:
+
+```bash
+docker compose exec postgres psql -U postgres -d occasionx_booking_db -c \
+  "select razorpay_order_id, razorpay_payment_id, amount from payments where status='PAID_NEEDS_REVIEW'
+   union all
+   select razorpay_order_id, razorpay_payment_id, amount from booking_charges where status='PAID_NEEDS_REVIEW'"
+```
+
+Membership payments flagged the same way are in `occasionx_auth_db`,
+table `membership_payments`.
+
+Test locally with `python services/shared/webhook_smoke_test.py`.

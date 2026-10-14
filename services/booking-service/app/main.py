@@ -13,6 +13,7 @@ from app.api.wishlist import router as wishlist_router
 from app.api.payment import router as payment_router
 from app.api.review import router as review_router
 from app.api.booking_charge import router as booking_charge_router
+from app.api.razorpay_webhook import router as razorpay_webhook_router
 
 app = FastAPI(title="OccasionX")
 
@@ -38,4 +39,8 @@ app.include_router(
 
 app.include_router(
     booking_charge_router
+)
+
+app.include_router(
+    razorpay_webhook_router
 )

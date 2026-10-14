@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 from fastapi import Depends
 
 from sqlalchemy.orm import Session
@@ -1323,6 +1324,48 @@ def verify_registration_payment(
     return {
         "success": True
     }
+
+
+class RazorpayPaid(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    amount: int  # paise
+
+
+@router.post("/internal/razorpay-paid")
+def razorpay_paid_internal(
+    payload: RazorpayPaid,
+    db: Session = Depends(get_db),
+    caller: dict = Depends(require_internal)
+):
+    """
+    Called by booking-service's Razorpay webhook (the backstop for a
+    provider who paid the registration fee but closed the tab before
+    the browser reported back). Idempotent.
+    """
+    provider = (
+        db.query(Provider)
+        .filter(Provider.registration_order_id == payload.razorpay_order_id)
+        .first()
+    )
+
+    if provider is None:
+        return {"handled": False, "result": None}
+
+    if provider.registration_fee_paid:
+        return {"handled": True, "result": "already_paid"}
+
+    if payload.amount < REGISTRATION_FEE_PAISE:
+        print(
+            "Registration payment short for provider",
+            provider.id, payload.razorpay_order_id, payload.amount
+        )
+        return {"handled": True, "result": "amount_short"}
+
+    provider.registration_fee_amount = payload.amount / 100
+    _complete_registration_payment(db, provider)
+
+    return {"handled": True, "result": "confirmed"}
 
 
 @router.post(

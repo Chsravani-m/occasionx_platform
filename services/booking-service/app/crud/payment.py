@@ -373,6 +373,14 @@ def verify_and_complete_combined_payment(db: Session, payload):
             "No payment records found for this order."
         )
 
+    # Already confirmed by the Razorpay webhook - don't confirm (and
+    # notify) a second time.
+    if all(payment.status == "PAID" for payment in payments):
+        return [
+            db.query(Booking).filter(Booking.id == payment.booking_id).first()
+            for payment in payments
+        ]
+
     charge = (
         db.query(BookingCharge)
         .filter(
@@ -466,6 +474,10 @@ def verify_and_complete_payment(db: Session, payload):
         raise PaymentError(
             "No payment record found for this order."
         )
+
+    # Already confirmed by the Razorpay webhook.
+    if payment.status == "PAID":
+        return db.query(Booking).filter(Booking.id == payment.booking_id).first()
 
     try:
         client.utility.verify_payment_signature({
