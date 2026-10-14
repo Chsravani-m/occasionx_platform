@@ -166,3 +166,34 @@ def verify_and_complete_membership_payment(db: Session, payload) -> User:
     payment.razorpay_signature = payload.razorpay_signature
 
     return _mark_paid(db, payment)
+
+
+def complete_membership_from_webhook(
+    db: Session, order_id: str, payment_id: str, amount_paise: int
+) -> str | None:
+    """
+    Razorpay webhook backstop (see booking-service
+    app/crud/razorpay_webhook.py). Returns None when the order isn't a
+    membership order, otherwise what happened. Safe to call repeatedly.
+    """
+    payment = (
+        db.query(MembershipPayment)
+        .filter(MembershipPayment.razorpay_order_id == order_id)
+        .first()
+    )
+
+    if payment is None:
+        return None
+
+    if payment.status == "PAID":
+        return "already_paid"
+
+    if amount_paise < int(round(float(payment.amount) * 100)):
+        payment.razorpay_payment_id = payment_id
+        payment.status = "PAID_NEEDS_REVIEW"
+        db.commit()
+        return "amount_short"
+
+    payment.razorpay_payment_id = payment_id
+    _mark_paid(db, payment)
+    return "confirmed"
