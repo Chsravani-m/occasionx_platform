@@ -2,6 +2,7 @@
 
 import {
   LOCATION_CHANGED_EVENT,
+  UNUSABLE_ACCURACY_METERS,
   type SavedLocation,
 } from "@/utils/locationMatch";
 import React, {
@@ -156,7 +157,14 @@ const Header: React.FC<HeaderProps> = ({
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const { latitude, longitude } = pos.coords;
+          const { latitude, longitude, accuracy } = pos.coords;
+
+          // Only a rough guess from the internet connection (common on
+          // desktops) - ask the visitor instead of showing a wrong place.
+          if (accuracy > UNUSABLE_ACCURACY_METERS) {
+            setShowLocationModal(true);
+            return;
+          }
           
           console.log("Latitude:", latitude);
           console.log("Longitude:", longitude);

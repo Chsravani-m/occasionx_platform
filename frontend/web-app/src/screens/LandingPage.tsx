@@ -181,6 +181,7 @@ import { FiSearch, FiMapPin, FiChevronDown } from 'react-icons/fi';
 import { getStates, getDistricts, getLocations} from "../services/locationApi";
 import {
   APPROXIMATE_ACCURACY_METERS,
+  UNUSABLE_ACCURACY_METERS,
   districtCandidates,
   getCurrentPosition,
   localityCandidates,
@@ -276,8 +277,18 @@ const LandingPage: React.FC = () => {
       return;
     }
 
+    const { latitude, longitude, accuracy } = position.coords;
+
+    if (accuracy > UNUSABLE_ACCURACY_METERS) {
+      toast.info(
+        `Your browser can only guess your location roughly (within about ${Math.round(
+          accuracy / 1000
+        )} km), so we haven't filled it in. Please select your State and District.`
+      );
+      return;
+    }
+
     try {
-      const { latitude, longitude, accuracy } = position.coords;
       const address = await reverseGeocode(latitude, longitude);
 
       const matchedState = matchByName(states, [address.state]);

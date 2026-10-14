@@ -22,6 +22,11 @@ export const LOCATION_CHANGED_EVENT = "ox-location-changed";
 // district can easily be wrong.
 export const APPROXIMATE_ACCURACY_METERS = 5000;
 
+// Beyond this the position is only a city-level guess from the internet
+// connection (desktops often report ~100 km) - too rough to pick a
+// district, or even a state near a border, so nothing is filled in.
+export const UNUSABLE_ACCURACY_METERS = 20000;
+
 // "Ranga Reddy" / "Rangareddy" / "Ranga Reddy District" /
 // "Medchal–Malkajgiri" -> comparable keys.
 export function normalizePlaceName(name: string | null | undefined): string {
