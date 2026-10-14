@@ -63,8 +63,10 @@ def create_refresh_token(
         days=7
     )
 
+    # Marked so the services refuse it as an access token - it may only
+    # be exchanged at /auth/refresh.
     payload.update(
-        {"exp": expire}
+        {"exp": expire, "type": "refresh"}
     )
 
     return jwt.encode(
@@ -72,6 +74,32 @@ def create_refresh_token(
         SECRET_KEY,
         algorithm=ALGORITHM
     )
+
+ONBOARDING_TOKEN_HOURS = 24
+
+
+def create_onboarding_token(user_id: str, provider_id: str):
+    """
+    Limited token for a provider who has just signed up and is still in
+    the registration wizard (they can't log in until the registration
+    fee is paid and the account activated). provider-service accepts it
+    only for that provider's own onboarding endpoints; every other
+    endpoint rejects it (see app/core/service_auth.py, ONBOARDING_SCOPE).
+    """
+    payload = {
+        "sub": str(user_id),
+        "role": "PROVIDER",
+        "provider_id": str(provider_id),
+        "scope": "provider_onboarding",
+        "exp": datetime.utcnow() + timedelta(hours=ONBOARDING_TOKEN_HOURS),
+    }
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
 
 def generate_verification_token():
     return secrets.token_urlsafe(32)

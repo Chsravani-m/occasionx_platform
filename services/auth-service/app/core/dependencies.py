@@ -1,33 +1,20 @@
 from fastapi import Depends
 from fastapi import HTTPException
-from fastapi.security import HTTPBearer
-from fastapi.security import HTTPAuthorizationCredentials
 
-from app.core.security import decode_token
+from app.core.service_auth import current_user, ADMIN_ROLES
 
-security = HTTPBearer()
+# Kept under its old name for the existing imports; validation (and the
+# rejection of refresh / onboarding tokens) lives in service_auth.
+get_current_user = current_user
 
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    token = credentials.credentials
-
-    payload = decode_token(token)
-
-    if not payload:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
-
-    return payload
 
 def require_role(role):
 
     def checker(current_user=Depends(get_current_user)):
 
-        if current_user["role"] != role:
+        allowed = ADMIN_ROLES if role in ADMIN_ROLES else {role}
+
+        if current_user.get("role") not in allowed:
             raise HTTPException(
                 status_code=403,
                 detail="Access denied"

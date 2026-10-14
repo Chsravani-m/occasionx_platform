@@ -1,5 +1,9 @@
 "use client";
-import { API_GATEWAY_URL } from "@/lib/apiClient";
+import {
+  API_GATEWAY_URL,
+  authHeaders,
+  ONBOARDING_TOKEN_KEY,
+} from "@/lib/apiClient";
 
 import { useState, useEffect } from "react";
 import { useToast, useConfirm } from "@/context/NotificationContext";
@@ -37,6 +41,7 @@ export default function SubscriptionSection() {
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     localStorage.removeItem("provider_id");
+    localStorage.removeItem(ONBOARDING_TOKEN_KEY);
 
     if (testActivationLink) {
       setActivationLink(testActivationLink);
@@ -81,6 +86,7 @@ export default function SubscriptionSection() {
         `${API_GATEWAY_URL}/providers/${providerId}/registration-payment`,
         {
           method: "POST",
+          headers: authHeaders(),
         }
       );
 
@@ -106,6 +112,7 @@ export default function SubscriptionSection() {
           `${API_GATEWAY_URL}/providers/${providerId}/mark-registration-paid`,
           {
             method: "POST",
+            headers: authHeaders(),
           }
         );
 
@@ -185,7 +192,8 @@ export default function SubscriptionSection() {
               method: "POST",
               headers: {
                 "Content-Type":
-                  "application/json"
+                  "application/json",
+                ...authHeaders(),
               },
               body: JSON.stringify(
                 response

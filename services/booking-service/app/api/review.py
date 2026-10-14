@@ -22,6 +22,8 @@ from app.crud.review import (
     ReviewError
 )
 
+from app.core.service_auth import current_user, ensure_self_or_admin
+
 router = APIRouter(
     prefix="/bookings",
     tags=["Reviews"]
@@ -34,8 +36,11 @@ router = APIRouter(
 )
 def submit_review(
     payload: ReviewCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(current_user)
 ):
+    ensure_self_or_admin(user, payload.customer_id)
+
     try:
         return create_review(db, payload)
 

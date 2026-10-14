@@ -1,5 +1,5 @@
 "use client";
-import { API_GATEWAY_URL } from "@/lib/apiClient";
+import { openProtectedFile } from "@/lib/apiClient";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -375,14 +375,17 @@ export default function AdminProvidersPage() {
                       {document.document_type}
                     </h3>
 
-                    <a
-                      href={`${API_GATEWAY_URL}${document.document_url}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openProtectedFile(document.document_url).catch(() =>
+                          alert("Couldn't open this document.")
+                        )
+                      }
                       className="mt-3 inline-block text-[#1E3A8A] font-medium"
                     >
                       Open Document →
-                    </a>
+                    </button>
                   </div>
                 ))
               )}

@@ -31,13 +31,14 @@ from app.repositories.token_repository import (
 )
 from app import otp_cache
 from app.whatsapp_utils import send_otp_whatsapp
-from app.meta_whatsapp import WHATSAPP_TEST_MODE
+from app.meta_whatsapp import EXPOSE_TEST_OTP
 
 from app.core.security import (
     hash_password,
     verify_password,
     create_access_token,
     create_refresh_token,
+    create_onboarding_token,
     decode_token,
     generate_verification_token
 )
@@ -127,6 +128,13 @@ def register_user(
     if role in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
         raise Exception(
             "Admin registration not allowed"
+        )
+    # Providers must sign up through /auth/register-provider, which also
+    # creates their provider record and collects the registration fee.
+    if role == UserRole.PROVIDER:
+        raise Exception(
+            "Please use the provider registration form to sign up as a "
+            "service provider."
         )
     if existing_user:
         raise Exception(
@@ -428,6 +436,11 @@ def register_provider(
             provider_data
         )
 
+        if provider_response.status_code >= 400 or "id" not in provider_data:
+            raise Exception(
+                f"provider-service returned {provider_response.status_code}"
+            )
+
     except Exception as e:
         print(
             "PROVIDER SERVICE FAILED:",
@@ -448,6 +461,11 @@ def register_provider(
         "user_id": str(user.id),
         "provider_id": provider_data["id"],
         "resuming": bool(resuming_provider),
+        # Lets the registration wizard save the remaining steps and pay
+        # the registration fee before the account is activated.
+        "onboarding_token": create_onboarding_token(
+            user.id, provider_data["id"]
+        ),
     }
 
 def login_user(
@@ -855,7 +873,7 @@ def send_otp(
     # meta_whatsapp.py's test-mode branch). Handing it back in the
     # response too means a developer testing through the browser can
     # see/use it without needing access to that console.
-    if WHATSAPP_TEST_MODE:
+    if EXPOSE_TEST_OTP:
         response["test_otp"] = otp_code
 
     return response
@@ -985,7 +1003,7 @@ def resend_otp(
         "OTP resent successfully"
     }
 
-    if WHATSAPP_TEST_MODE:
+    if EXPOSE_TEST_OTP:
         response["test_otp"] = otp_code
 
     return response
@@ -1055,7 +1073,7 @@ def send_registration_otp(db, phone: str):
     # See send_otp() above for why this is safe to include - it only
     # ever fires in WHATSAPP_TEST_MODE, where no real message was sent
     # anyway.
-    if WHATSAPP_TEST_MODE:
+    if EXPOSE_TEST_OTP:
         response["test_otp"] = otp_code
 
     return response

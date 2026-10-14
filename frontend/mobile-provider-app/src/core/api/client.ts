@@ -89,12 +89,28 @@ export async function getAccessToken() {
   return secureGet(ACCESS_TOKEN_KEY);
 }
 
+// Limited token returned by POST /auth/register-provider. The provider
+// can't sign in until the registration fee is paid and the account is
+// activated, so the registration wizard uses this to save the remaining
+// steps and pay the fee. The backend accepts it only for that
+// provider's own onboarding endpoints.
+const ONBOARDING_TOKEN_KEY = "providerOnboardingToken";
+
+export async function setOnboardingToken(token: string) {
+  await secureSet(ONBOARDING_TOKEN_KEY, token);
+}
+
+export async function clearOnboardingToken() {
+  await secureDelete(ONBOARDING_TOKEN_KEY);
+}
+
 export async function getStoredUser<T = any>(): Promise<T | null> {
   const raw = await AsyncStorage.getItem(USER_KEY);
   return raw ? (JSON.parse(raw) as T) : null;
 }
 
 export async function clearSession() {
+  await secureDelete(ONBOARDING_TOKEN_KEY);
   await secureDelete(ACCESS_TOKEN_KEY);
   await secureDelete(REFRESH_TOKEN_KEY);
   await AsyncStorage.removeItem(USER_KEY);
@@ -113,7 +129,8 @@ import { DeviceEventEmitter } from "react-native";
 export const SESSION_EXPIRED_EVENT = "session-expired";
 
 api.interceptors.request.use(async (config) => {
-  const token = await getAccessToken();
+  const token =
+    (await getAccessToken()) || (await secureGet(ONBOARDING_TOKEN_KEY));
   if (token) {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;

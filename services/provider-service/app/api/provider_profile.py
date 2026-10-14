@@ -17,6 +17,9 @@ from app.db.models.portfolio import Portfolio
 
 from app.db.models.service import Service
 
+from app.core.service_auth import optional_onboarding_user
+from app.core.ownership import public_provider
+
 router = APIRouter(
     prefix="/providers",
     tags=["Provider Profile"]
@@ -25,7 +28,8 @@ router = APIRouter(
 @router.get("/{provider_id}/profile")
 def get_provider_profile(
     provider_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict | None = Depends(optional_onboarding_user)
 ):
 
     provider = (
@@ -70,7 +74,7 @@ def get_provider_profile(
     )
 
     return {
-        "provider": provider,
+        "provider": public_provider(provider, user),
         "categories": categories,
         "portfolio": portfolio,
         "services": services

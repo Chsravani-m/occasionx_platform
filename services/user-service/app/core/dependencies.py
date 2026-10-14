@@ -1,25 +1,5 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
+from app.core.service_auth import current_user
 
-from app.core.security import decode_token
-
-security = HTTPBearer()
-
-
-def get_current_user(
-    token=Depends(security)
-):
-    print("TOKEN RECEIVED:")
-
-
-    payload = decode_token(
-        token.credentials
-    )
-
-    if not payload:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
-
-    return payload
+# Kept under its old name for existing imports; token validation (and
+# rejection of refresh / onboarding tokens) lives in service_auth.
+get_current_user = current_user

@@ -92,6 +92,13 @@ class Provider(Base):
     nullable=True
     )
 
+    # Razorpay order created for this provider's registration fee. The
+    # payment confirmation is only accepted for this exact order.
+    registration_order_id = Column(
+        String(100),
+        nullable=True
+    )
+
     account_activated = Column(
         Boolean,
         default=False

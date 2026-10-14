@@ -14,6 +14,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 
 import { registerProvider } from "@/features/auth/authApi";
+import { setOnboardingToken } from "@/core/api/client";
 import {
   sendRegistrationOtp,
   verifyRegistrationOtp,
@@ -351,6 +352,7 @@ function Tab2Contact({
         youtube_url: values.youtube_url || undefined,
       });
 
+      await setOnboardingToken(response.onboarding_token);
       setProviderId(response.provider_id);
       setAccountCreated(true);
       onAccountCreated(response.provider_id);

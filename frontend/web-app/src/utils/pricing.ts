@@ -11,13 +11,12 @@ export const MAX_GUESTS_PER_ROOM = 4;
 export const MAX_PEOPLE_QUANTITY = 10;
 
 // Mirrors BOOKING_CHARGE_AMOUNT_PAISE in
-// services/booking-service/app/crud/booking_charge.py (currently Rs.1,
-// temp for testing - real value is meant to be Rs.99). Charged per
-// service being booked, not a flat one-time amount. Used here only to
-// show an accurate estimated total on the review page before
+// services/booking-service/app/crud/booking_charge.py (Rs.99). Charged
+// per service being booked, not a flat one-time amount. Used here only
+// to show an accurate estimated total on the review page before
 // checkout - the backend is always the source of truth for what's
 // actually charged.
-export const BOOKING_CHARGE_AMOUNT = 1;
+export const BOOKING_CHARGE_AMOUNT = 99;
 
 const PRICING_TYPE_LABELS: Record<string, string> = {
   PER_PLATE: "per plate",

@@ -25,6 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Header the backend services use to recognise each other (see
+# services/shared/service_auth.py). Only the services themselves may set
+# it - anything a client sends is dropped here.
+INTERNAL_HEADER = "x-internal-key"
+
+
+def _forward_headers(request: Request) -> dict:
+    return {
+        name: value
+        for name, value in request.headers.items()
+        if name.lower() != INTERNAL_HEADER
+    }
+
+
 AUTH_SERVICE = os.getenv("AUTH_SERVICE_URL", "http://localhost:8001")
 USER_SERVICE = os.getenv("USER_SERVICE_URL", "http://localhost:8002")
 PROVIDER_SERVICE = os.getenv("PROVIDER_SERVICE_URL", "http://localhost:8003")
@@ -82,7 +96,7 @@ async def auth_proxy(path: str, request: Request):
         response = await client.request(
             request.method,
             target_url,
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -122,7 +136,7 @@ async def user_proxy(
         response = await client.request(
             request.method,
             f"{USER_SERVICE}/api/v1/users/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -149,7 +163,7 @@ async def provider_root(
         response = await client.request(
             request.method,
             f"{PROVIDER_SERVICE}/providers",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -187,7 +201,7 @@ async def provider_proxy(
         response = await client.request(
             request.method,
             f"{PROVIDER_SERVICE}/providers/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -220,9 +234,16 @@ async def uploads_proxy(
 
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
 
+        # Authorization is passed through for the login-protected KYC
+        # documents under /uploads/provider-documents/.
         response = await client.get(
             f"{PROVIDER_SERVICE}/uploads/{path}",
-            params=request.query_params
+            params=request.query_params,
+            headers=(
+                {"authorization": request.headers["authorization"]}
+                if "authorization" in request.headers
+                else {}
+            )
         )
 
         return Response(
@@ -306,7 +327,7 @@ async def search_service_proxy(
         response = await client.request(
             request.method,
             f"{SEARCH_SERVICE}/search/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -341,7 +362,7 @@ async def catalog_proxy(
         response = await client.request(
             request.method,
             f"{CATALOG_SERVICE}/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -376,7 +397,7 @@ async def location_proxy(
         response = await client.request(
             request.method,
             f"{CATALOG_SERVICE}/locations/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -407,7 +428,7 @@ async def booking_root(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/bookings",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -443,7 +464,7 @@ async def booking_proxy(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/bookings/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -479,7 +500,7 @@ async def notification_proxy(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/notifications/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -508,7 +529,7 @@ async def wishlist_root(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/wishlist",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -542,7 +563,7 @@ async def wishlist_proxy(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/wishlist/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -576,7 +597,7 @@ async def payment_proxy(
         response = await client.request(
             request.method,
             f"{BOOKING_SERVICE}/payments/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -609,7 +630,7 @@ async def ai_proxy(
         response = await client.request(
             request.method,
             f"{AI_SERVICE}/ai/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -644,7 +665,7 @@ async def budget_proxy(
         response = await client.request(
             request.method,
             f"{SEARCH_SERVICE}/budget/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -679,7 +700,7 @@ async def vendor_proxy(
         response = await client.request(
             request.method,
             f"{SEARCH_SERVICE}/vendor/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )
@@ -714,7 +735,7 @@ async def collab_proxy(
         response = await client.request(
             request.method,
             f"{COLLAB_SERVICE}/collab/{path}",
-            headers=dict(request.headers),
+            headers=_forward_headers(request),
             content=await request.body(),
             params=request.query_params
         )

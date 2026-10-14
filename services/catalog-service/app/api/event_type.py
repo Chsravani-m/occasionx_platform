@@ -19,6 +19,8 @@ from app.schemas.event_type import (
     EventTypeUpdateRequest
 )
 
+from app.core.service_auth import require_admin
+
 router = APIRouter(
     prefix="/event-types",
     tags=["Event Types"]
@@ -41,7 +43,8 @@ def get_event_types(
 )
 def create_event_type_api(
     payload: EventTypeCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         return create_event_type(db, payload)
@@ -60,7 +63,8 @@ def create_event_type_api(
 def update_event_type_api(
     event_type_id: UUID,
     payload: EventTypeUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         event_type = update_event_type(
@@ -85,7 +89,8 @@ def update_event_type_api(
 @router.delete("/{event_type_id}")
 def delete_event_type_api(
     event_type_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         deleted = delete_event_type(db, event_type_id)

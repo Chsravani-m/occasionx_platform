@@ -26,6 +26,8 @@ from app.schemas.category_tree import (
     CategoryWithSubcategories
 )
 
+from app.core.service_auth import require_admin
+
 router = APIRouter(
     prefix="/categories",
     tags=["Categories"]
@@ -61,7 +63,8 @@ def get_category_tree(
 )
 def create_category_api(
     payload: CategoryCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         return create_category(db, payload)
@@ -80,7 +83,8 @@ def create_category_api(
 def update_category_api(
     category_id: UUID,
     payload: CategoryUpdateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         category = update_category(
@@ -105,7 +109,8 @@ def update_category_api(
 @router.delete("/{category_id}")
 def delete_category_api(
     category_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin)
 ):
     try:
         deleted = delete_category(db, category_id)

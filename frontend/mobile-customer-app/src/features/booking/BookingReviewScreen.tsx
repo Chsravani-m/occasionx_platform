@@ -13,7 +13,8 @@ import type { CustomerStackParamList } from "@/core/navigation/types";
 
 type Props = NativeStackScreenProps<CustomerStackParamList, "BookingReview">;
 
-const APPLICATION_FEE_PER_BOOKING = 1;
+// Mirrors BOOKING_CHARGE_AMOUNT_PAISE in booking-service (Rs.99).
+const APPLICATION_FEE_PER_BOOKING = 99;
 
 export default function BookingReviewScreen({ route, navigation }: Props) {
   const { items, fromCart } = route.params;

@@ -22,6 +22,12 @@ from app.crud.service import (
     get_service
 )
 
+from app.core.service_auth import onboarding_user
+from app.core.ownership import (
+    ensure_can_manage_provider,
+    ensure_can_manage_service,
+)
+
 router = APIRouter(
     prefix="/providers",
     tags=["Services"]
@@ -33,8 +39,11 @@ router = APIRouter(
 def create_provider_service(
     provider_id: UUID,
     request: ServiceCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_provider(db, user, provider_id)
+
     return create_service(
         db,
         provider_id,
@@ -61,8 +70,11 @@ def get_services(
 def update_provider_service(
     service_id: UUID,
     request: ServiceUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_service(db, user, service_id)
+
     service = update_service(
         db,
         service_id,
@@ -82,8 +94,11 @@ def update_provider_service(
 )
 def remove_service(
     service_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_service(db, user, service_id)
+
     deleted = delete_service(
         db,
         service_id

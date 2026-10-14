@@ -54,6 +54,8 @@ from app.core.dependencies import (
     require_self_or_admin
 )
 
+from app.core.service_auth import is_admin
+
 router = APIRouter(
     prefix="/bookings",
     tags=["Bookings"]
@@ -71,7 +73,7 @@ def _require_owning_provider_or_admin(
     provider-service first (see app/provider_client.py).
     """
 
-    if current_user.get("role") in ("ADMIN", "SUPER_ADMIN"):
+    if is_admin(current_user):
         return
 
     owning_user_id = get_provider_user_id(provider_id)
@@ -228,7 +230,7 @@ def list_bookings(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    if current_user.get("role") not in ("ADMIN", "SUPER_ADMIN"):
+    if not is_admin(current_user):
         raise HTTPException(
             status_code=403,
             detail="Admin access required"
@@ -248,7 +250,7 @@ def booking_stats(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    if current_user.get("role") not in ("ADMIN", "SUPER_ADMIN"):
+    if not is_admin(current_user):
         raise HTTPException(
             status_code=403,
             detail="Admin access required"

@@ -22,6 +22,12 @@ from app.crud.pricing import (
     delete_pricing
 )
 
+from app.core.service_auth import onboarding_user
+from app.core.ownership import (
+    ensure_can_manage_service,
+    ensure_can_manage_pricing,
+)
+
 router = APIRouter(
     prefix="/providers",
     tags=["Pricing"]
@@ -34,8 +40,11 @@ router = APIRouter(
 def create_service_pricing(
     service_id: UUID,
     request: PricingCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_service(db, user, service_id)
+
     return create_pricing(
         db,
         service_id,
@@ -85,8 +94,11 @@ def get_single_pricing(
 def update_service_pricing(
     pricing_id: UUID,
     request: PricingUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_pricing(db, user, pricing_id)
+
     pricing = update_pricing(
         db,
         pricing_id,
@@ -106,8 +118,11 @@ def update_service_pricing(
 )
 def remove_pricing(
     pricing_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(onboarding_user)
 ):
+    ensure_can_manage_pricing(db, user, pricing_id)
+
     deleted = delete_pricing(
         db,
         pricing_id
