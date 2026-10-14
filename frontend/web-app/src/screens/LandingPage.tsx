@@ -180,6 +180,15 @@ import { useRouter } from "next/navigation";
 import { FiSearch, FiMapPin, FiChevronDown } from 'react-icons/fi';
 import { getStates, getDistricts, getLocations} from "../services/locationApi";
 import {
+  APPROXIMATE_ACCURACY_METERS,
+  districtCandidates,
+  getCurrentPosition,
+  localityCandidates,
+  matchByName,
+  reverseGeocode,
+  saveLocation,
+} from "../utils/locationMatch";
+import {
   getCategories,
   getSubcategories
 } from "../services/catalogApi";
@@ -256,152 +265,84 @@ const LandingPage: React.FC = () => {
   const router = useRouter();
 
   const handleAutoDetect = async () => {
+    let position: GeolocationPosition;
 
-  if (!navigator.geolocation) {
-    toast.error("Geolocation not supported");
-    return;
-  }
+    try {
+      position = await getCurrentPosition();
+    } catch {
+      toast.error(
+        "Unable to access your location. Allow location for this site, or pick your State and District."
+      );
+      return;
+    }
 
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
+    try {
+      const { latitude, longitude, accuracy } = position.coords;
+      const address = await reverseGeocode(latitude, longitude);
 
-      const {
-        latitude,
-        longitude
-      } = position.coords;
+      const matchedState = matchByName(states, [address.state]);
 
-      try {
-
-        const response =
-          await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-          );
-
-        const data =
-          await response.json();
-
-        const address =
-          data.address || {};
-
-        const stateName =
-          address.state || "";
-
-        const districtName =
-          address.city ||
-          address.county ||
-          "";
-
-        const locationName =
-          address.suburb ||
-          address.neighbourhood ||
-          "";
-
-        console.log({
-          stateName,
-          districtName,
-          locationName
-        });
-
-        const matchedState =
-          states.find(
-            (s) =>
-              s.name.toLowerCase() ===
-              stateName.toLowerCase()
-          );
-
-        if (!matchedState) {
-          toast.error(
-            "State not found in master data"
-          );
-          return;
-        }
-
-        setState(
-          String(
-            matchedState.id
-          )
-        );
-
-        const districtData =
-          await getDistricts(
-            matchedState.id
-          );
-
-        setDistricts(
-          districtData
-        );
-
-        const matchedDistrict =
-        districtData.find(
-          (d) =>
-            districtName
-              .toLowerCase()
-              .includes(
-                d.name.toLowerCase()
-              ) ||
-            d.name
-              .toLowerCase()
-              .includes(
-                districtName.toLowerCase()
-              )
-        );
-
-        if (!matchedDistrict) {
-          toast.error(
-            "District not found in master data"
-          );
-          return;
-        }
-
-        setDistrict(
-          String(
-            matchedDistrict.id
-          )
-        );
-
-        const locationData =
-          await getLocations(
-            matchedDistrict.id
-          );
-
-        setLocations(
-          locationData
-        );
-
-        const matchedLocation =
-          locationData.find(
-            (l) =>
-              l.name.toLowerCase() ===
-              locationName.toLowerCase()
-          );
-
-        if (matchedLocation) {
-
-          setLocation(
-            String(
-              matchedLocation.id
-            )
-          );
-
-        }
-
-      } catch (error) {
-
-        console.error(error);
-
+      if (!matchedState) {
         toast.error(
-          "Failed to detect location"
+          `We don't serve ${address.state || "your area"} yet. Please pick a State.`
         );
+        return;
       }
 
-    },
-    () => {
-      toast.error(
-        "Unable to access location"
+      setState(String(matchedState.id));
+      setDistrict("");
+      setLocation("");
+      setLocations([]);
+
+      const districtData = await getDistricts(matchedState.id);
+      setDistricts(districtData);
+
+      const matchedDistrict = matchByName(
+        districtData,
+        districtCandidates(address)
       );
+
+      if (!matchedDistrict) {
+        toast.info(
+          `Found ${matchedState.name}, but not your district. Please pick it from the list.`
+        );
+        return;
+      }
+
+      setDistrict(String(matchedDistrict.id));
+
+      const locationData = await getLocations(matchedDistrict.id);
+      setLocations(locationData);
+
+      const matchedLocation = matchByName(
+        locationData,
+        localityCandidates(address)
+      );
+
+      if (matchedLocation) {
+        setLocation(String(matchedLocation.id));
+      }
+
+      // Keep the header's location in step with what was detected.
+      saveLocation({
+        city: matchedLocation?.name || matchedDistrict.name,
+        state: matchedState.name,
+        district: matchedDistrict.name,
+        postalCode: address.postcode || "",
+      });
+
+      if (accuracy > APPROXIMATE_ACCURACY_METERS) {
+        toast.info(
+          `Your browser could only estimate your location (about ${Math.round(
+            accuracy / 1000
+          )} km). Please check the district is right.`
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to detect location");
     }
-  );
-};
+  };
 
 useEffect(() => {
 

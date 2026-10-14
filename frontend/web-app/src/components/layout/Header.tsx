@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  LOCATION_CHANGED_EVENT,
+  type SavedLocation,
+} from "@/utils/locationMatch";
 import React, {
   useEffect,
   useRef,
@@ -225,7 +229,8 @@ const Header: React.FC<HeaderProps> = ({
 
         setShowLocationModal(true);
 
-      }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   } else {
 
@@ -362,6 +367,17 @@ useEffect(() => {
 
   }
 
+  // Quick Search's "Auto detect location" saves what it found; show the
+  // same place here instead of an older saved location.
+  const onLocationChanged = (event: Event) => {
+    const next = (event as CustomEvent<SavedLocation>).detail;
+    if (!next) return;
+    setDetectedLocation(next);
+    setLocation({ city: next.city || "", pincode: next.postalCode || "" });
+  };
+
+  window.addEventListener(LOCATION_CHANGED_EVENT, onLocationChanged);
+
   const loadUser = () => {
 
     try {
@@ -419,6 +435,11 @@ useEffect(() => {
     window.removeEventListener(
       "storage",
       loadUser
+    );
+
+    window.removeEventListener(
+      LOCATION_CHANGED_EVENT,
+      onLocationChanged
     );
 
   };
